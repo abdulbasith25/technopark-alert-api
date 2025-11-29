@@ -27,13 +27,18 @@ def send_telegram(msg):
     requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
 # Load ML model
-model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device="cpu")
+# Load ML model (lightweight, no torch)
+model = SentenceTransformer(
+    "jinaai/jina-embeddings-small-v2",
+    device="cpu"
+)
 
 labels = [
     "fresher entry level 0-1 years junior",
     "experienced senior 3+ years"
 ]
-label_emb = model.encode(labels, convert_to_tensor=True)
+
+label_emb = model.encode(labels)
 
 def classify(text):
     emb = model.encode(text, convert_to_tensor=True)
