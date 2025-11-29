@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+requests
+sentence-transformers
+torch
+transformers
+urllib3<2
