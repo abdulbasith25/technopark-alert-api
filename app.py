@@ -7,8 +7,8 @@ import numpy as np
 
 app = FastAPI()
 
-TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"
+TELEGRAM_TOKEN = "8032200545:AAEMFO914zack8tWDhG5XfRftfH9fP-qBMM"
+CHAT_ID = "727552569"
 
 API_URL = "https://technopark.in/api/paginated-jobs?page=1&search=&type="
 SEEN_FILE = "seen.json"
