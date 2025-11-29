@@ -27,7 +27,8 @@ def send_telegram(msg):
     requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
 # Load ML model
-model = SentenceTransformer("Supabase/gte-tiny")
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device="cpu")
+
 labels = [
     "fresher entry level 0-1 years junior",
     "experienced senior 3+ years"
