@@ -1,53 +1,64 @@
 from fastapi import FastAPI
 import requests
 import json
-from sentence_transformers import SentenceTransformer, util
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
 
 app = FastAPI()
 
-# --------------------------
-# CONFIG
-# --------------------------
 TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
 CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"
 
 API_URL = "https://technopark.in/api/paginated-jobs?page=1&search=&type="
 SEEN_FILE = "seen.json"
 
-# Load seen jobs
+# Load seen IDs
 try:
     with open(SEEN_FILE, "r") as f:
         seen = set(json.load(f))
 except:
     seen = set()
 
-# Telegram notifier
-def send_telegram(msg):
+def send_telegram(msg: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
-# Load ML model
-# Load ML model (lightweight, no torch)
-model = SentenceTransformer(
-    "jinaai/jina-embeddings-small-v2",
-    device="cpu"
-)
 
-labels = [
-    "fresher entry level 0-1 years junior",
-    "experienced senior 3+ years"
+# --------- LIGHTWEIGHT ML CLASSIFIER ----------
+KEYWORDS = [
+    "fresher", "entry level", "0-1 year", "0-2 years", "junior", "trainee",
+    "graduate", "looking for beginners"
 ]
 
-label_emb = model.encode(labels)
+vectorizer = TfidfVectorizer(stop_words="english")
+
+# small training samples
+train_x = [
+    "fresher entry level opportunity 0-1 year experience",
+    "junior developer trainee role",
+    "experience minimum 3 years senior developer",
+    "looking for experienced candidate 5 years"
+]
+train_y = [1, 1, 0, 0]  # 1 = fresher, 0 = experienced
+
+vectorizer.fit(train_x)
 
 def classify(text):
-    emb = model.encode(text, convert_to_tensor=True)
-    sim = util.cos_sim(emb, label_emb)[0]
-    return "fresher" if sim[0] > sim[1] else "experienced"
+    text_low = text.lower()
 
-# --------------------------
-# MAIN ENDPOINT
-# --------------------------
+    # keyword score
+    for k in KEYWORDS:
+        if k in text_low:
+            return "fresher"
+
+    # tfidf fallback
+    vec = vectorizer.transform([text_low])
+    score = vec.toarray().sum()
+
+    return "fresher" if score > 1 else "experienced"
+
+
 @app.get("/run")
 def run():
     global seen
@@ -59,12 +70,11 @@ def run():
 
     for job in data:
         job_id = job["id"]
-
         if job_id in seen:
             continue
 
         title = job["job_title"]
-        desc = job["description"] or ""
+        desc = job.get("description", "")
 
         combined = f"{title} {desc}"
 
@@ -86,4 +96,4 @@ def run():
     with open(SEEN_FILE, "w") as f:
         json.dump(list(seen), f)
 
-    return {"status": "done", "new_fresher_jobs": new_jobs}
+    return {"status": "ok", "new_fresher_jobs": new_jobs}

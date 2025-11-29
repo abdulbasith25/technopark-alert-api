@@ -1,7 +1,6 @@
 fastapi
 uvicorn
 requests
-sentence-transformers
-onnxruntime
+scikit-learn
 numpy
 urllib3<2
