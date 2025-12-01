@@ -53,47 +53,6 @@ def classify(text):
     return "fresher" if score > 0.1 else "experienced"
 
 
-# @app.get("/run")
-# def run():
-    global seen
-
-    res = requests.get(API_URL)
-    data = res.json().get("data", [])
-
-    new_jobs = 0
-
-    for job in data:
-        job_id = job["id"]
-        if job_id in seen:
-            continue
-
-        title = job.get("job_title", "")
-        short_desc = job.get("short_description", "")
-
-        combined = f"{title} {short_desc}"
-
-        if classify(combined) == "fresher":
-            new_jobs += 1
-
-            msg = (
-                f"🔥 NEW FRESHER JOB!\n"
-                f"{title}\n"
-                f"Company: {job.get('company', {}).get('company', 'N/A')}\n"
-                f"Closing: {job.get('closing_date', 'N/A')}\n"
-                f"Link: https://technopark.in/job/{job_id}"
-            )
-
-            send_telegram(msg)
-
-        seen.add(job_id)
-
-    # save seen list
-    with open(SEEN_FILE, "w") as f:
-        json.dump(list(seen), f)
-
-    return {"status": "ok", "new_fresher_jobs": new_jobs}
-
-
 @app.get("/run")
 def run():
     send_telegram("🔥 /run executed successfully")
