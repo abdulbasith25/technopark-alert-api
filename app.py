@@ -1,9 +1,7 @@
 from fastapi import FastAPI
 import requests
 import json
-import re
 from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
 
 app = FastAPI()
 
@@ -24,39 +22,35 @@ def send_telegram(msg: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
-
-# --------- LIGHTWEIGHT ML CLASSIFIER ----------
+# --------- SIMPLE CLASSIFIER ----------
 KEYWORDS = [
-    "fresher", "entry level", "0-1 year", "0-2 years", "junior", "trainee",
-    "graduate", "looking for beginners"
+    "fresher", "entry level", "0-1", "0-2",
+    "junior", "trainee", "graduate", "beginner"
 ]
 
 vectorizer = TfidfVectorizer(stop_words="english")
 
-# small training samples
 train_x = [
     "fresher entry level opportunity 0-1 year experience",
     "junior developer trainee role",
     "experience minimum 3 years senior developer",
     "looking for experienced candidate 5 years"
 ]
-train_y = [1, 1, 0, 0]  # 1 = fresher, 0 = experienced
+train_y = [1, 1, 0, 0]
 
 vectorizer.fit(train_x)
 
 def classify(text):
     text_low = text.lower()
 
-    # keyword score
+    # keyword check
     for k in KEYWORDS:
         if k in text_low:
             return "fresher"
 
-    # tfidf fallback
-    vec = vectorizer.transform([text_low])
-    score = vec.toarray().sum()
-
-    return "fresher" if score > 1 else "experienced"
+    # fallback
+    score = vectorizer.transform([text_low]).toarray().sum()
+    return "fresher" if score > 0.1 else "experienced"
 
 
 @app.get("/run")
@@ -73,26 +67,27 @@ def run():
         if job_id in seen:
             continue
 
-        title = job["job_title"]
-        desc = job.get("description", "")
+        title = job.get("job_title", "")
+        short_desc = job.get("short_description", "")
 
-        combined = f"{title} {desc}"
+        combined = f"{title} {short_desc}"
 
-        result = classify(combined)
-
-        if result == "fresher":
+        if classify(combined) == "fresher":
             new_jobs += 1
+
             msg = (
                 f"🔥 NEW FRESHER JOB!\n"
                 f"{title}\n"
-                f"Company: {job['company']['company']}\n"
-                f"Closing: {job['closing_date']}\n"
+                f"Company: {job.get('company', {}).get('company', 'N/A')}\n"
+                f"Closing: {job.get('closing_date', 'N/A')}\n"
                 f"Link: https://technopark.in/job/{job_id}"
             )
+
             send_telegram(msg)
 
         seen.add(job_id)
 
+    # save seen list
     with open(SEEN_FILE, "w") as f:
         json.dump(list(seen), f)
 
