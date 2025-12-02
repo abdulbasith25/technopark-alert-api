@@ -55,7 +55,7 @@ def classify(text):
 
 @app.get("/run")
 def run():
-    send_telegram("🔥 /run executed successfully")
+    # send_telegram("🔥 /run executed successfully")
 
     global seen
 
