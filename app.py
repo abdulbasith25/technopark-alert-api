@@ -88,7 +88,7 @@ def run():
                 f"{title}\n"
                 f"Company: {job.get('company', {}).get('company', 'N/A')}\n"
                 f"Closing: {job.get('closing_date', 'N/A')}\n"
-                f"Link: https://technopark.in/job/{job_id}"
+                f"Link: https://technopark.in/job-details/{job_id}"
             )
 
             send_telegram(msg)
