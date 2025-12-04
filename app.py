@@ -11,6 +11,16 @@ import google.generativeai as genai
 genai.configure(api_key="AIzaSyCiZnKsJclu-0ZvaVrCrpgwuhWaFBqx32E")
 
 app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # for testing; tighten later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # -----------------------------------
 # TELEGRAM SETTINGS
