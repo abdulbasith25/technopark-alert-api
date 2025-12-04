@@ -1,101 +1,176 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import requests
 import json
-from sklearn.feature_extraction.text import TfidfVectorizer
+import os
+from datetime import datetime
+
+# -----------------------------------
+# IMPORT GEMINI
+# -----------------------------------
+import google.generativeai as genai
+genai.configure(api_key="AIzaSyCiZnKsJclu-0ZvaVrCrpgwuhWaFBqx32E")
 
 app = FastAPI()
 
+# -----------------------------------
+# TELEGRAM SETTINGS
+# -----------------------------------
 TELEGRAM_TOKEN = "8032200545:AAEMFO914zack8tWDhG5XfRftfH9fP-qBMM"
 CHAT_ID = "727552569"
 
-API_URL = "https://technopark.in/api/paginated-jobs?page=1&search=&type="
-SEEN_FILE = "seen.json"
+def send_telegram(msg: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
-# Load seen IDs
+
+# -----------------------------------
+# STORAGE FILES
+# -----------------------------------
+SEEN_FILE = "seen.json"
+CV_FILE = "cv_text.json"
+DAILY_FILE = "daily_sent.json"     # <---- NEW: Prevent spamming at 12 PM
+
+# Load seen jobs
 try:
     with open(SEEN_FILE, "r") as f:
         seen = set(json.load(f))
 except:
     seen = set()
 
-def send_telegram(msg: str):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+# Load stored CV
+try:
+    with open(CV_FILE, "r") as f:
+        STORED_CV = json.load(f)
+except:
+    STORED_CV = {"cv_text": ""}
 
-# --------- SIMPLE CLASSIFIER ----------
-KEYWORDS = [
-    "fresher", "entry level", "0-1", "0-2",
-    "junior", "trainee", "graduate", "beginner"
+# Load last daily sent info
+try:
+    with open(DAILY_FILE, "r") as f:
+        last_daily = json.load(f)
+except:
+    last_daily = {"date": ""}
+
+
+# -----------------------------------
+# API TO RECEIVE CV FROM REACT (POST)
+# -----------------------------------
+@app.post("/upload_cv")
+def upload_cv(payload: dict):
+    cv_text = payload.get("cv_text", "").strip()
+    if not cv_text:
+        raise HTTPException(400, "cv_text is empty")
+
+    # Store the CV text
+    with open(CV_FILE, "w") as f:
+        json.dump({"cv_text": cv_text, "uploaded_at": str(datetime.utcnow())}, f)
+
+    return {"status": "stored", "length": len(cv_text)}
+
+
+# -----------------------------------
+# FETCH JOBS FROM TECHNOPARK API
+# -----------------------------------
+API_URL = "https://technopark.in/api/paginated-jobs?page=1&search=&type="
+
+def fetch_jobs():
+    try:
+        res = requests.get(API_URL, timeout=10)
+        data = res.json().get("data", [])
+        return data
+    except:
+        return []
+
+
+# -----------------------------------
+# GEMINI MATCHING FUNCTION
+# -----------------------------------
+def analyze_with_gemini(cv_text: str, jobs: list):
+    model = genai.GenerativeModel("gemini-1.5-flash")
+
+    prompt = f"""
+You are an AI job-matching assistant.
+
+Candidate CV:
+{cv_text}
+
+Job Listings:
+{json.dumps(jobs)}
+
+TASK:
+1. Pick the TOP 5 best-matching jobs.
+2. Provide: job title, company, match score (0–100), short reason, and job link.
+
+Return ONLY JSON in this exact format:
+[
+  {{
+    "title": "",
+    "company": "",
+    "match_score": 0,
+    "reason": "",
+    "link": ""
+  }}
 ]
+"""
 
-vectorizer = TfidfVectorizer(stop_words="english")
-
-train_x = [
-    "fresher entry level opportunity 0-1 year experience",
-    "junior developer trainee role",
-    "experience minimum 3 years senior developer",
-    "looking for experienced candidate 5 years"
-]
-train_y = [1, 1, 0, 0]
-
-vectorizer.fit(train_x)
-
-def classify(text):
-    text_low = text.lower()
-
-    # keyword check
-    for k in KEYWORDS:
-        if k in text_low:
-            return "fresher"
-
-    # fallback
-    score = vectorizer.transform([text_low]).toarray().sum()
-    return "fresher" if score > 0.1 else "experienced"
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Error contacting Gemini: {str(e)}"
 
 
+# -----------------------------------
+# CRON JOB ENDPOINT (Render pings this)
+# Runs every 5 minutes
+# -----------------------------------
 @app.get("/run")
 def run():
-    # send_telegram("🔥 /run executed successfully")
+    global last_daily
 
-    global seen
+    # Load the stored CV
+    try:
+        with open(CV_FILE, "r") as f:
+            stored = json.load(f)
+            cv_text = stored.get("cv_text", "")
+    except:
+        cv_text = ""
 
-    # --- STATIC TEST JOB ---
-    test_job_id = -1
-    if test_job_id not in seen:
-        send_telegram("🔔 CRON TEST: The script is running successfully!")
-        seen.add(test_job_id)
+    if not cv_text.strip():
+        send_telegram("⚠️ No CV uploaded yet — cannot run matching.")
+        return {"status": "no_cv"}
 
-    res = requests.get(API_URL)
-    data = res.json().get("data", [])
+    # Fetch latest jobs
+    jobs = fetch_jobs()
 
-    new_jobs = 0
+    if not jobs:
+        send_telegram("⚠️ No jobs found from API.")
+        return {"status": "no_jobs"}
 
-    for job in data:
-        job_id = job["id"]
-        if job_id in seen:
-            continue
+    # TIME CHECK (UTC OR LOCAL? Use UTC for safety)
+    now = datetime.utcnow()
+    today_date = now.strftime("%Y-%m-%d")
 
-        title = job.get("job_title", "")
-        short_desc = job.get("short_description", "")
+    # -----------------------------------
+    # DAILY 12 PM SUMMARY — ONLY ONCE
+    # -----------------------------------
+    if now.hour == 12 and last_daily.get("date") != today_date:
+        gemini_output = analyze_with_gemini(cv_text, jobs)
+        msg = f"🌞 *Your Daily 12 PM Job Summary*\n\n{gemini_output}"
+        send_telegram(msg)
 
-        combined = f"{title} {short_desc}"
+        # Update last sent date
+        last_daily["date"] = today_date
+        with open(DAILY_FILE, "w") as f:
+            json.dump(last_daily, f)
 
-        if classify(combined) == "fresher":
-            new_jobs += 1
+        return {"status": "daily_summary_sent"}
 
-            msg = (
-                f"🔥 NEW FRESHER JOB!\n"
-                f"{title}\n"
-                f"Company: {job.get('company', {}).get('company', 'N/A')}\n"
-                f"Closing: {job.get('closing_date', 'N/A')}\n"
-                f"Link: https://technopark.in/job-details/{job_id}"
-            )
+    # -----------------------------------
+    # NORMAL 5-MINUTE JOB CHECK (NO SPAM)
+    # -----------------------------------
+    gemini_output = analyze_with_gemini(cv_text, jobs)
+    msg = f"🔥 *Updated Job Matches Based on Your CV*\n\n{gemini_output}"
+    send_telegram(msg)
 
-            send_telegram(msg)
-
-        seen.add(job_id)
-
-    with open(SEEN_FILE, "w") as f:
-        json.dump(list(seen), f)
-
-    return {"status": "ok", "new_fresher_jobs": new_jobs}
+    return {"status": "success", "sent_to_telegram": True}

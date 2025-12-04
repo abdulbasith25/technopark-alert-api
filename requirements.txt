@@ -1,6 +1,6 @@
 fastapi
 uvicorn
 requests
+pydantic
+google-generativeai
 scikit-learn
-numpy
-urllib3<2
