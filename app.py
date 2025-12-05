@@ -8,7 +8,7 @@ from datetime import datetime
 # IMPORT GEMINI
 # -----------------------------------
 import google.generativeai as genai
-genai.configure(api_key="AIzaSyC0WG2ttI6VEIXWJ-7a0deVUFwFziruuBg")
+genai.configure(api_key=os.getenv("GEMINI"))
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
