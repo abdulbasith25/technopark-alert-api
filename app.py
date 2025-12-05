@@ -8,7 +8,7 @@ from datetime import datetime
 # IMPORT GEMINI
 # -----------------------------------
 import google.generativeai as genai
-genai.configure(api_key="AIzaSyCiZnKsJclu-0ZvaVrCrpgwuhWaFBqx32E")
+genai.configure(api_key="AIzaSyC0WG2ttI6VEIXWJ-7a0deVUFwFziruuBg")
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -179,8 +179,8 @@ def run():
     # -----------------------------------
     # NORMAL 5-MINUTE JOB CHECK (NO SPAM)
     # -----------------------------------
-    gemini_output = analyze_with_gemini(cv_text, jobs)
-    msg = f"🔥 *Updated Job Matches Based on Your CV*\n\n{gemini_output}"
-    send_telegram(msg)
+    # gemini_output = analyze_with_gemini(cv_text, jobs)
+    # msg = f"🔥 *Updated Job Matches Based on Your CV*\n\n{gemini_output}"
+    # send_telegram(msg)
 
     return {"status": "success", "sent_to_telegram": True}
