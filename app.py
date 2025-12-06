@@ -110,17 +110,24 @@ Job Listings:
 TASK:
 1. Pick the TOP 5 best-matching jobs.
 2. Provide: job title, company, match score (0–100), short reason, and job link.
+3.job link will be "https://technopark.in/job-details/(id from json i gave)"
+Return the results in a clean, readable **Telegram-friendly format**, not JSON.
 
-Return ONLY JSON in this exact format:
-[
-  {{
-    "title": "",
-    "company": "",
-    "match_score": 0,
-    "reason": "",
-    "link": ""
-  }}
-]
+Format:
+🔥 Top 5 Job Matches for You
+
+1️⃣ <Job Title> – <Company>
+Match Score: <0–100>
+Reason: <short reason>
+Link: https://technopark.in/job-details/<id>
+
+2️⃣ <Job Title> – <Company>
+Match Score: <0–100>
+Reason: <short reason>
+Link: https://technopark.in/job-details/<id>
+
+(Continue for all 5 jobs)
+
 """
 
     try:
@@ -153,9 +160,9 @@ def run():
     # Fetch latest jobs
     jobs = fetch_jobs()
 
-    if not jobs:
-        send_telegram("⚠️ No jobs found from API.")
-        return {"status": "no_jobs"}
+    # if not jobs:
+    #     send_telegram("⚠️ No jobs found from API.")
+    #     return {"status": "no_jobs"}
 
     # TIME CHECK (UTC OR LOCAL? Use UTC for safety)
     now = datetime.utcnow()
