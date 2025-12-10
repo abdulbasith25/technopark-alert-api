@@ -160,9 +160,9 @@ def run():
     # Fetch latest jobs
     jobs = fetch_jobs()
 
-    # if not jobs:
-    #     send_telegram("⚠️ No jobs found from API.")
-    #     return {"status": "no_jobs"}
+    if not jobs:
+        send_telegram("⚠️ No jobs found from API.")
+        return {"status": "no_jobs"}
 
     # TIME CHECK (UTC OR LOCAL? Use UTC for safety)
     now = datetime.utcnow()
@@ -186,8 +186,8 @@ def run():
     # -----------------------------------
     # NORMAL 5-MINUTE JOB CHECK (NO SPAM)
     # -----------------------------------
-    # gemini_output = analyze_with_gemini(cv_text, jobs)
-    # msg = f"🔥 *Updated Job Matches Based on Your CV*\n\n{gemini_output}"
-    # send_telegram(msg)
+    gemini_output = analyze_with_gemini(cv_text, jobs)
+    msg = f"🔥 *Updated Job Matches Based on Your CV*\n\n{gemini_output}"
+    send_telegram(msg)
 
     return {"status": "success", "sent_to_telegram": True}
