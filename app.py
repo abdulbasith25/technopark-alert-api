@@ -186,8 +186,8 @@ def run():
     # -----------------------------------
     # NORMAL 5-MINUTE JOB CHECK (NO SPAM)
     # -----------------------------------
-    # gemini_output = analyze_with_gemini(cv_text, jobs)
-    # msg = f"🔥 *Updated Job Matches Based on Your CV*\n\n{gemini_output}"
-    # send_telegram(msg)
+    gemini_output = analyze_with_gemini(cv_text, jobs)
+    msg = f"🔥 *Updated Job Matches Based on Your CV*\n\n{gemini_output}"
+    send_telegram(msg)
 
     return {"status": "success", "sent_to_telegram": True}
