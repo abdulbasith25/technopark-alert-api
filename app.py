@@ -25,8 +25,8 @@ app.add_middleware(
 # -----------------------------------
 # TELEGRAM SETTINGS
 # -----------------------------------
-TELEGRAM_TOKEN = "8032200545:AAEMFO914zack8tWDhG5XfRftfH9fP-qBMM"
-CHAT_ID = "727552569"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 def send_telegram(msg: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -81,7 +81,7 @@ def upload_cv(payload: dict):
 # -----------------------------------
 # FETCH JOBS FROM TECHNOPARK API
 # -----------------------------------
-API_URL = "https://technopark.in/api/paginated-jobs?page=1&search=&type="
+API_URL = os.getenv("JOB_API")
 
 def fetch_jobs():
     try:
